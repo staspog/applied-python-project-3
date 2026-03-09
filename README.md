@@ -4,9 +4,6 @@
 
 ## Запуск (docker-compose)
 
-1. Убедись, что установлен Docker.
-2. Запусти:
-
 ```bash
 docker compose up --build
 ```
@@ -25,7 +22,7 @@ OpenAPI/Swagger: `http://localhost:8000/docs`
 - Получение токена: `POST /auth/token` (form-data, OAuth2 password flow)
 - Текущий пользователь: `GET /auth/me` (Bearer token)
 
-## API эндпоинты (обязательные)
+## API эндпоинты
 
 - **Создать короткую ссылку**: `POST /links/shorten`
 - **Редирект**: `GET /links/{short_code}`
@@ -52,7 +49,7 @@ OpenAPI/Swagger: `http://localhost:8000/docs`
     - `DELETE /guest/links/{short_code}`
   - Ограничения для гостей (настраиваются env): rate-limit создания и max активных ссылок.
 
-## Примеры запросов (curl)
+## Примеры запросов
 
 ### Регистрация
 
@@ -144,7 +141,7 @@ curl -X DELETE http://localhost:8000/guest/links/myalias \\
 curl 'http://localhost:8000/links/expired?limit=50&offset=0' -b cookies.txt -c cookies.txt
 ```
 
-## Схема БД (кратко)
+## Схема БД
 
 - `users`: пользователи
 - `links`: активные ссылки
