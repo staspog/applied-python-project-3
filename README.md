@@ -146,5 +146,7 @@ curl 'http://localhost:8000/links/expired?limit=50&offset=0' -b cookies.txt -c c
 
 ## Схема БД (кратко)
 
-- `users`: пользователи\n- `links`: активные ссылки\n- `links_archive`: истёкшие/удалённые ссылки (история)
+- `users`: пользователи
+- `links`: активные ссылки
+- `links_archive`: истёкшие/удалённые ссылки (история)
 
