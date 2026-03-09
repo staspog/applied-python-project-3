@@ -25,8 +25,9 @@ async def run_expiry_cleanup_loop(
                 redis_client=redis_client,
                 batch_size=batch_size,
             )
-        except Exception:  # noqa: BLE001
-            # Avoid killing the loop on transient DB/Redis errors.
+        except Exception:
+            # не даём единичным ошибкам БД/Redis убить весь фон очистки
+            # просто пропускаем эту итерацию и продолжаем работать дальше
             pass
         await asyncio.sleep(interval_seconds)
 
@@ -72,6 +73,5 @@ async def _cleanup_once(
     if keys:
         try:
             await redis_client.delete(*keys)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
-

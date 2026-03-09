@@ -36,7 +36,7 @@ async def test_custom_alias_unique(client):
 
 
 async def test_expires_at_validation(client):
-    # seconds precision rejected
+    # отклоняем дату с точностью до секунд
     r = await client.post(
         "/links/shorten",
         json={
@@ -90,7 +90,7 @@ async def test_user_update_delete_and_guest_management(client):
     )
     assert r.status_code == 204
 
-    # guest link + guest update/delete (cookie session)
+    # гостевая ссылка, а также обновление/удаление гостем (cookie-сессия)
     r = await client.post("/links/shorten", json={"original_url": "https://example.com/g"})
     assert r.status_code == 201
     guest_code = r.json()["short_code"]

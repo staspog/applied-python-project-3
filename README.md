@@ -49,6 +49,43 @@ OpenAPI/Swagger: `http://localhost:8000/docs`
     - `DELETE /guest/links/{short_code}`
   - Ограничения для гостей (настраиваются env): rate-limit создания и max активных ссылок.
 
+## Особенность `/links/{short_code}` в Swagger
+
+Эндпоинт `GET /links/{short_code}` возвращает **редирект** (307) на внешний URL.  
+В Swagger UI при нажатии “Try it out” и “Execute” вы можете увидеть сообщение вида:
+
+> Undocumented  
+> Failed to fetch.  
+> Possible Reasons: CORS / Network Failure / URL scheme must be "http" or "https" for CORS request.
+
+Это **ожидаемое поведение Swagger**, а не ошибка сервиса:
+
+- браузер выполняет AJAX‑запрос к `/links/{short_code}`;
+- сервер отвечает `307 Temporary Redirect` с заголовком `Location: <оригинальный URL>`;
+- браузер пытается сходить уже на внешний домен (например, `https://example.com`),  
+  но тот не даёт CORS‑заголовков для `http://localhost:8000/docs`, и Swagger не может “прочитать” этот ответ.
+
+В логах приложения при этом видно, что редирект отрабатывает корректно, например:
+
+```text
+INFO:     146.75.54.132:22000 - "GET /links/project3_1 HTTP/1.1" 307 Temporary Redirect
+```
+
+**Как правильно тестировать редирект без фронта:**
+
+- После создания ссылки (через Swagger или `curl`) возьмите `short_code` из ответа и:
+  - либо откройте `http://<host>/links/{short_code}` прямо в адресной строке браузера  
+    → браузер сам перейдёт на оригинальный URL;
+  - либо используйте `curl`:
+
+    ```bash
+    curl -i http://localhost:8000/links/myalias
+    ```
+
+    В ответе вы увидите строку статуса `307 Temporary Redirect` и заголовок `Location` с полной ссылкой.
+
+В тестовом режиме можно использовать Swagger как интерфейс для **создания**/изменения ссылок и просмотра статистики, а для проверки самого редиректа — просто открывать `GET /links/{short_code}` в браузере или через `curl`, как описано выше.
+
 ## Примеры запросов
 
 ### Регистрация
