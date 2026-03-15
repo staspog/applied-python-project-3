@@ -1,0 +1,13 @@
+[run]
+source = app
+omit =
+    app/main.py
+    app/jobs/expiry.py
+    app/db/session.py
+    app/schemas/links.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError

@@ -12,13 +12,57 @@ docker compose up --build
 
 OpenAPI/Swagger: `http://localhost:8000/docs`
 
+Перед первым запуском создайте `.env` из `.env.example` и задайте как минимум `JWT_SECRET_KEY` и `SESSION_SECRET_KEY` (в docker-compose они не переопределяются из `environment`, но приложение читает их из `env_file`).
+
+### Весь проект в Docker + нагрузочные тесты Locust
+
+1. **Поднять** (из корня проекта, где лежит `docker-compose.yml`):
+
+   ```bash
+   cd /path/to/project3
+   docker compose up --build -d
+   ```
+
+   Поднимутся контейнеры: `db` (Postgres), `redis`, `app` (FastAPI на порту 8000). Миграции выполняются при старте `app`.
+
+2. **Проверить, что API отвечает:**
+
+   ```bash
+   curl -s http://localhost:8000/docs
+   # или
+   curl -s -X POST http://localhost:8000/links/shorten \
+     -H "Content-Type: application/json" \
+     -d '{"original_url":"https://example.com"}'
+   ```
+
+3. **Запустить Locust** на своей машине (не в контейнере), указав хост приложения:
+
+   ```bash
+   # из той же папки project3
+   locust -f locustfile.py --host=http://localhost:8000
+   ```
+
+   Откроется веб-интерфейс по адресу **http://localhost:8089**. Укажите число пользователей и RPS, нажмите Start.
+
+   Вариант без веб-интерфейса (только консоль):
+
+   ```bash
+   locust -f locustfile.py --host=http://localhost:8000 --headless -u 10 -r 2 -t 30s
+   ```
+
+4. **Остановить стек:**
+
+   ```bash
+   docker compose down
+   ```
+
 ## Миграции
 
 При старте контейнера `app` автоматически выполняется `alembic upgrade head`.
 
 ## Переменные окружения и генерация секретов
 
-Файл `.env` можно собрать по образцу `.env.example`. Минимум, что нужно задать на проде:
+Файл `.env` можно собрать по образцу `.env.example`. Минимум, что нужно задать:
 
 - `JWT_SECRET_KEY` — секрет для подписи JWT-токенов.
 - `SESSION_SECRET_KEY` — секрет для подписи cookie-сессий гостей.
@@ -202,6 +246,48 @@ curl -X DELETE http://localhost:8000/guest/links/myalias \\
 ```bash
 curl 'http://localhost:8000/links/expired?limit=50&offset=0' -b cookies.txt -c cookies.txt
 ```
+
+## Запуск тестов
+
+### Юнит и функциональные тесты (pytest)
+
+```bash
+# все тесты
+pytest tests/ -v
+
+# с покрытием (терминал + HTML-отчёт)
+coverage run -m pytest tests/
+coverage report
+coverage html
+```
+
+**Где смотреть отчёт о покрытии**
+
+- **Главная страница отчёта (с неё начинать):** отчёт о покрытии [здесь](htmlcov/index.html) — сводка по модулям и общий процент покрытия (открывать в браузере).
+- Структура каталога:
+  - `htmlcov/index.html` — **сюда нажимать**, чтобы просмотреть отчёт;
+  - `htmlcov/` — остальные технические файлы (стили, скрипты, постраничные отчёты по каждому модулю), они подгружаются автоматически при открытии `index.html`.
+
+Покрытие кода — не менее 90%. Текущее покрытие: **92%**. Чтобы пересобрать отчёт: `coverage run -m pytest tests/`, затем `coverage html`.
+
+### Нагрузочные тесты (Locust)
+
+Сервис должен быть запущен и иметь доступ к **Redis** и БД. При локальном запуске (`uvicorn app.main:app`) без Docker Redis по умолчанию не поднят — запросы будут падать с 500 (`Connection refused` к localhost:6379). Варианты:
+
+**Вариант 1 — всё в Docker (рекомендуется):**
+```bash
+docker compose up --build
+# в другом терминале:
+locust -f locustfile.py --host=http://localhost:8000
+```
+
+```bash
+# веб-интерфейс Locust: http://localhost:8089
+# только консоль:
+locust -f locustfile.py --host=http://localhost:8000 --headless -u 10 -r 2 -t 30s
+```
+
+В сценарии: создание ссылки гостем, переход по короткой ссылке (редирект), запрос статистики.
 
 ## Схема БД
 

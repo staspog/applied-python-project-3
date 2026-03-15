@@ -88,6 +88,60 @@ async def shorten_link(
     )
 
 
+@router.get("/links/search", response_model=list[LinkOut])
+async def search_links(
+    original_url: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    links = await search_links_by_original_url(session, original_url)
+    return [
+        LinkOut(
+            short_code=l.short_code,
+            original_url=l.original_url,
+            created_at=l.created_at,
+            expires_at=l.expires_at,
+        )
+        for l in links
+    ]
+
+
+@router.get("/links/expired", response_model=list[ArchivedLinkOut])
+async def list_expired_links(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user=Depends(get_optional_user),
+    limit: int = 50,
+    offset: int = 0,
+):
+    limit = min(max(limit, 1), 200)
+    offset = max(offset, 0)
+    owner_user_id = user.id if user else None
+    owner_guest_id = None if user else get_guest_id(request)
+    if owner_user_id is None and owner_guest_id is None:
+        raise HTTPException(status_code=401, detail="Authentication or guest session required")
+
+    archived = await list_archived_links(
+        session,
+        owner_user_id=owner_user_id,
+        owner_guest_id=owner_guest_id,
+        limit=limit,
+        offset=offset,
+    )
+    return [
+        ArchivedLinkOut(
+            short_code=a.short_code,
+            original_url=a.original_url,
+            created_at=a.created_at,
+            expires_at=a.expires_at,
+            clicks_count=a.clicks_count,
+            last_accessed_at=a.last_accessed_at,
+            archived_at=a.archived_at,
+            archived_reason=a.archived_reason,
+        )
+        for a in archived
+    ]
+
+
 @router.get("/links/{short_code}", response_class=RedirectResponse)
 async def redirect_short_code(
     short_code: str,
@@ -153,23 +207,6 @@ async def link_stats(
     )
     await cache_stats(redis_client, short_code=short_code, stats=stats.model_dump(mode="json"))
     return stats
-
-
-@router.get("/links/search", response_model=list[LinkOut])
-async def search_links(
-    original_url: str,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-):
-    links = await search_links_by_original_url(session, original_url)
-    return [
-        LinkOut(
-            short_code=l.short_code,
-            original_url=l.original_url,
-            created_at=l.created_at,
-            expires_at=l.expires_at,
-        )
-        for l in links
-    ]
 
 
 @router.put("/links/{short_code}", response_model=LinkOut)
@@ -278,41 +315,3 @@ async def delete_guest_link(
         raise HTTPException(status_code=403, detail="Forbidden")
     await invalidate_link(redis_client, short_code)
     return None
-
-
-@router.get("/links/expired", response_model=list[ArchivedLinkOut])
-async def list_expired_links(
-    request: Request,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    user=Depends(get_optional_user),
-    limit: int = 50,
-    offset: int = 0,
-):
-    limit = min(max(limit, 1), 200)
-    offset = max(offset, 0)
-    owner_user_id = user.id if user else None
-    owner_guest_id = None if user else get_guest_id(request)
-    if owner_user_id is None and owner_guest_id is None:
-        raise HTTPException(status_code=401, detail="Authentication or guest session required")
-
-    archived = await list_archived_links(
-        session,
-        owner_user_id=owner_user_id,
-        owner_guest_id=owner_guest_id,
-        limit=limit,
-        offset=offset,
-    )
-    return [
-        ArchivedLinkOut(
-            short_code=a.short_code,
-            original_url=a.original_url,
-            created_at=a.created_at,
-            expires_at=a.expires_at,
-            clicks_count=a.clicks_count,
-            last_accessed_at=a.last_accessed_at,
-            archived_at=a.archived_at,
-            archived_reason=a.archived_reason,
-        )
-        for a in archived
-    ]
-
